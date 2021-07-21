@@ -1,3 +1,5 @@
-# meedr 0.0.1
+# meedr 0.0.2
+* Adequate API request in accordance with CRAN policy
 
-* Added a `NEWS.md` file to track changes to the package.
+# meedr 0.0.1
+* First version released on CRAN.

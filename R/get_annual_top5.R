@@ -26,6 +26,7 @@
 #' @examples
 #' df <- get_annual_top5(
 #'   indicator = "IPCA",
+#'   first_date = Sys.Date() - 30,
 #'   reference_date = format(Sys.Date(), "%Y"),
 #'   use_memoise = FALSE
 #' )
@@ -171,6 +172,11 @@ get_annual_top5 <- function (
     cache_dir   = memoise::cache_filesystem("./cache_bcb")
   )
 
+  resp <- httr::GET(odata_url[[1]])
+  if (httr::http_type(resp) != "application/json") {
+    stop("BCB-Olinda API did not return json.", call. = FALSE)
+  }
+
   if (!do_parallel) {
 
     if (be_quiet) {message("", appendLF = FALSE)} else {
@@ -185,11 +191,9 @@ get_annual_top5 <- function (
       silent = TRUE
     )
   } else {
-    formals_parallel <- formals(future::plan())
-    used_workers <- formals_parallel$workers
+    used_workers <- future::nbrOfWorkers()
     available_cores <- future::availableCores()
-    msg <- utils::capture.output(future::plan())
-    flag <- grepl("sequential", msg)[1]
+    flag <- inherits(future::plan(), "sequential")
     if (flag) {
       stop(paste0(
         "When using do_parallel = TRUE, you need to call future::plan() to configure your parallel settings.\n",

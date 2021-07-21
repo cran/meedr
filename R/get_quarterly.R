@@ -20,6 +20,7 @@
 #' @examples
 #' df <- get_quarterly(
 #'   indicator = "PIB Total",
+#'   first_date = Sys.Date() - 30,
 #'   reference_date = paste0(lubridate::quarter(Sys.Date()), "/",
 #'                           lubridate::year(Sys.Date())
 #'                           ),
@@ -119,6 +120,11 @@ get_quarterly <- function (
     cache_dir   = memoise::cache_filesystem("./cache_bcb")
   )
 
+  resp <- httr::GET(odata_url[[1]])
+  if (httr::http_type(resp) != "application/json") {
+    stop("BCB-Olinda API did not return json.", call. = FALSE)
+  }
+
   if (!do_parallel) {
 
     if (be_quiet) {message("", appendLF = FALSE)} else {
@@ -133,11 +139,9 @@ get_quarterly <- function (
       silent = TRUE
     )
   } else {
-    formals_parallel <- formals(future::plan())
-    used_workers <- formals_parallel$workers
+    used_workers <- future::nbrOfWorkers()
     available_cores <- future::availableCores()
-    msg <- utils::capture.output(future::plan())
-    flag <- grepl("sequential", msg)[1]
+    flag <- inherits(future::plan(), "sequential")
     if (flag) {
       stop(paste0(
         "When using do_parallel = TRUE, you need to call future::plan() to configure your parallel settings.\n",
@@ -164,8 +168,7 @@ get_quarterly <- function (
     stop("\nError in fetching data: ", conditionMessage(attr(df, "condition")),
          call. = FALSE
     )
-  } else if
-  (purrr::is_empty(df)) {
+  } else if (purrr::is_empty(df)) {
     stop(
       paste0(
         "\nIt seems that there is no data available. Possibly, the last available data is earlier than that defined in one of these arguments:
@@ -173,15 +176,17 @@ get_quarterly <- function (
       ),
       call. = FALSE
     )
-  } else if
-  (be_quiet) {message("", appendLF = FALSE)}
-  else
-    message(paste0("\nFound ", nrow(df), " observations!\n"), appendLF = FALSE)
+  } else if (be_quiet) {
+    message("", appendLF = FALSE)
+    } else message(
+      paste0("\nFound ", nrow(df), " observations!\n"),
+      appendLF = FALSE
+      )
 
   df <- dplyr::rename_with(
     dplyr::as_tibble(df),
     ~c("indicator", "date", "reference_date", "mean", "median",
-       "sd","coef_var", "min", "max", "n_respondents")
+       "sd","coef_var", "min", "max", "n_respondents", "basis")
   )
   df <- dplyr::mutate(df, date = as.Date(date, format = "%Y-%m-%d"))
 
